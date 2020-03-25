@@ -5,6 +5,7 @@
   "main": "./lib/src/index.js",
   "types": "types",
   "scripts": {
+    "prepare": "node scripts/try_build.js",
     "build": "tsc",
     "lint": "tslint --project ./tsconfig.json -t stylish",
     "test": "npm run-script build && mocha"
@@ -26,5 +27,9 @@
     "tslint": "^5.20.1",
     "typescript": "^3.8.3",
     "why-is-node-running": "^2.1.2"
-  }
+  },
+  "files": [
+    "src/*",
+    "lib/src/*"
+  ]
 }
