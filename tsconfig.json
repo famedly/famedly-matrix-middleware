@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "target": "es2016",
+        "noImplicitAny": false,
+        "inlineSourceMap": true,
+        "outDir": "./lib",
+        "strictNullChecks": true,
+        "allowSyntheticDefaultImports": true,
+        "typeRoots": [
+            "./typings",
+            "./node_modules/@types"
+        ]
+    },
+    "compileOnSave": true,
+    "include": [
+        "src/**/*",
+        "test/**/*",
+        "typings/*"
+    ]
+}
