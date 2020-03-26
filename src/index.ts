@@ -130,13 +130,20 @@ export interface IRateLimitOptions {
 	enabled: boolean,
 }
 
+const WINDOW_RETRY_EXTRA = 100;
+const DEFAULT_WIDNOW_MS = 60000;
+
 export function rateLimit(opts: IRateLimitOptions): express.RequestHandler {
 	let limiter: expressRateLimit.RateLimit | null = null;
 	if (opts.enabled) {
 		limiter = expressRateLimit({
-			windowMs: opts.windowMs,
+			windowMs: opts.windowMs || DEFAULT_WIDNOW_MS,
 			max: opts.max,
-			message: opts.message,
+			message: opts.message || {
+				errcode: "M_LIMIT_EXCEEDED",
+				error: "Too many requests",
+				retry_after_ms: (opts.windowMs || DEFAULT_WIDNOW_MS) + WINDOW_RETRY_EXTRA,
+			},
 		});
 	}
 	return (req: express.Request, res: express.Response, next: express.NextFunction) => {
