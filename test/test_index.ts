@@ -16,7 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 import { expect } from "chai";
-import { parseAccessToken, validateJson, accessControlHeaders } from "../src/index";
+import { parseAccessToken, validateJson, accessControlHeaders, rateLimit } from "../src/index";
 import * as proxyquire from "proxyquire";
 import { HTTPError } from "got";
 
@@ -51,6 +51,12 @@ function getRequireAccessToken() {
 	return requireAccessToken("");
 }
 
+async function delay(ms) {
+	return new Promise((resolve, reject) => {
+		setTimeout(resolve, ms);
+	});
+}
+
 const STATUS_OK = 200;
 const STATUS_CREATED = 201;
 const STATUS_BAD_REQUEST = 400;
@@ -67,9 +73,10 @@ function getRes() {
 	RES_STATUS = STATUS_OK;
 	RES_SEND = "";
 	RES_JSON = {};
-	return {
+	const res = {
 		status: (status) => {
 			RES_STATUS = status;
+			return res;
 		},
 		send: (text) => {
 			RES_SEND = text;
@@ -77,7 +84,9 @@ function getRes() {
 		json: (obj) => {
 			RES_JSON = obj;
 		},
+		setHeader: (h, v) => { },
 	} as any;
+	return res;
 }
 
 let NEXT_CALLED = false;
@@ -215,5 +224,40 @@ describe("validateJson", () => {
 			validateJson()(req, getRes(), getNext());
 			expect(NEXT_CALLED).to.be.true;
 		}
+	});
+});
+describe("rateLimit", () => {
+	it("should work, if enabled", async () => {
+		const limit = rateLimit({
+			windowMs: 50,
+			max: 2,
+			enabled: true,
+		});
+		limit({} as any, getRes(), getNext());
+		await delay(3);
+		expect(NEXT_CALLED).to.be.true;
+		limit({} as any, getRes(), getNext());
+		await delay(3);
+		expect(NEXT_CALLED).to.be.true;
+		limit({} as any, getRes(), getNext());
+		await delay(3);
+		expect(NEXT_CALLED).to.be.false;
+		await delay(70);
+		limit({} as any, getRes(), getNext());
+		await delay(3);
+		expect(NEXT_CALLED).to.be.true;
+	});
+	it("should just pass-through, if disabled", () => {
+		const limit = rateLimit({
+			windowMs: 50,
+			max: 2,
+			enabled: false,
+		});
+		limit({} as any, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
+		limit({} as any, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
+		limit({} as any, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
 	});
 });

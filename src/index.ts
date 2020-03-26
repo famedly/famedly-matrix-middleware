@@ -16,7 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 import * as express from "express";
-import * as expressCore from "express-serve-static-core";
+import * as expressRateLimit from "express-rate-limit";
 import got, { HTTPError } from "got";
 
 const STATUS_BAD_REQUEST = 400;
@@ -46,7 +46,9 @@ interface IAuthRes {
 
 export function requireAccessToken(homeserverUrl: string): express.RequestHandler {
 	return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-		parseAccessToken()(req, res, () => {});
+		if (!req.accessToken) {
+			parseAccessToken()(req, res, () => {});
+		}
 		if (!req.accessToken) {
 			res.status(STATUS_FORBIDDEN);
 			res.json({
@@ -118,5 +120,30 @@ export function accessControlHeaders(): express.RequestHandler {
 		res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 		res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
 		next();
+	};
+}
+
+export interface IRateLimitOptions {
+	windowMs?: number,
+	max?: number,
+	message?: any, // tslint:disable-line no-any
+	enabled: boolean,
+}
+
+export function rateLimit(opts: IRateLimitOptions): express.RequestHandler {
+	let limiter: expressRateLimit.RateLimit | null = null;
+	if (opts.enabled) {
+		limiter = expressRateLimit({
+			windowMs: opts.windowMs,
+			max: opts.max,
+			message: opts.message,
+		});
+	}
+	return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+		if (!limiter) {
+			next();
+			return;
+		}
+		limiter(req, res, next);
 	};
 }
