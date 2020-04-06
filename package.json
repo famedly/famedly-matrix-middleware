@@ -5,7 +5,6 @@
   "main": "./lib/src/index.js",
   "types": "types",
   "scripts": {
-    "prepare": "tsc",
     "build": "tsc",
     "lint": "tslint --project ./tsconfig.json -t stylish",
     "test": "npm run-script build && mocha"
