@@ -23,30 +23,39 @@ import { HTTPError } from "got";
 // we are a test file and thus our linting rules are slightly different
 // tslint:disable:no-unused-expression max-file-line-count no-any no-magic-numbers no-string-literal
 
+const proxyquireGot = { default: (opts) => {
+	switch (opts.headers.Authorization) {
+		case "Bearer goodfox":
+			return {
+				json: async () => {
+					return {
+						user_id: "@fox:localhost",
+					};
+				},
+			};
+		case "Bearer badfox":
+			return {
+				json: async () => {
+					return { };
+				},
+			};
+		case "Bearer invalidfox":
+			throw new HTTPError({ body: "{\"errcode\": \"M_UNKNOWN_TOKEN\"}"} as any, null as any);
+		default:
+			throw new Error("bad login");
+	}
+}};
+
+function getValidateAccessToken() {
+	const validateAccessToken = proxyquire.load("../src/index", {
+		got: proxyquireGot,
+	}).validateAccessToken;
+	return validateAccessToken("");
+}
+
 function getRequireAccessToken() {
 	const requireAccessToken = proxyquire.load("../src/index", {
-		"got": { default: (opts) => {
-			switch (opts.headers.Authorization) {
-				case "Bearer goodfox":
-					return {
-						json: async () => {
-							return {
-								user_id: "@fox:localhost",
-							};
-						},
-					};
-				case "Bearer badfox":
-					return {
-						json: async () => {
-							return { };
-						},
-					};
-				case "Bearer invalidfox":
-					throw new HTTPError({ body: "{\"errcode\": \"M_UNKNOWN_TOKEN\"}"} as any, null as any);
-				default:
-					throw new Error("bad login");
-			}
-		}},
+		got: proxyquireGot,
 	}).requireAccessToken;
 	return requireAccessToken("");
 }
@@ -135,6 +144,44 @@ describe("parseAccessToken", () => {
 		expect(req.accessToken).to.equal("fox");
 	});
 });
+describe("validateAccessToken", () => {
+	it("should not validate, if no access token is found", async () => {
+		const req: any = {
+			header: () => null,
+			query: {},
+		};
+		await getValidateAccessToken()(req, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
+		expect(req.authUserId).to.be.undefined;
+	});
+	it("should accept valid access tokens", async () => {
+		const req: any = {
+			header: () => "Bearer goodfox",
+			query: {},
+		};
+		await getValidateAccessToken()(req, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
+		expect(req.authUserId).to.equal("@fox:localhost");
+	});
+	it("should not validate blank replies", async () => {
+		const req: any = {
+			header: () => "Bearer badfox",
+			query: {},
+		};
+		await getValidateAccessToken()(req, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
+		expect(req.authUserId).to.be.undefined;
+	});
+	it("should not validate unknown access tokens", async () => {
+		const req: any = {
+			header: () => "Bearer invalidfox",
+			query: {},
+		};
+		await getValidateAccessToken()(req, getRes(), getNext());
+		expect(NEXT_CALLED).to.be.true;
+		expect(req.authUserId).to.be.undefined;
+	});
+});
 describe("requireAccessToken", () => {
 	it("should deny, if no access token is found", async () => {
 		const req: any = {
@@ -172,7 +219,7 @@ describe("requireAccessToken", () => {
 			soft_logout: false,
 		});
 	});
-	it("should correctly regonize unknown access tokens", async () => {
+	it("should correctly recognize unknown access tokens", async () => {
 		const req: any = {
 			header: () => "Bearer invalidfox",
 			query: {},

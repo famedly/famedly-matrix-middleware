@@ -44,6 +44,35 @@ interface IAuthRes {
 	user_id?: string;
 }
 
+export function validateAccessToken(homeserverUrl: string): express.RequestHandler {
+	return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+		if (!req.accessToken) {
+			parseAccessToken()(req, res, () => {});
+		}
+		if (!req.accessToken) {
+			next();
+			return;
+		}
+		try {
+			const authRes = await got({
+				method: "GET",
+				url: homeserverUrl + "/_matrix/client/r0/account/whoami",
+				headers: {
+					Authorization: `Bearer ${req.accessToken}`,
+				},
+			}).json() as IAuthRes;
+			if (!authRes || typeof authRes.user_id !== "string") {
+				next();
+				return;
+			}
+			req.authUserId = authRes.user_id;
+			next();
+		} catch (err) {
+			next();
+		}
+	};
+}
+
 export function requireAccessToken(homeserverUrl: string): express.RequestHandler {
 	return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
 		if (!req.accessToken) {
@@ -124,10 +153,10 @@ export function accessControlHeaders(): express.RequestHandler {
 }
 
 export interface IRateLimitOptions {
-	windowMs?: number,
-	max?: number,
-	message?: any, // tslint:disable-line no-any
-	enabled: boolean,
+	windowMs?: number;
+	max?: number;
+	message?: any; // tslint:disable-line no-any
+	enabled: boolean;
 }
 
 const WINDOW_RETRY_EXTRA = 100;
