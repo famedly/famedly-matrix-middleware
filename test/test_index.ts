@@ -40,7 +40,12 @@ const proxyquireGot = { default: (opts) => {
 				},
 			};
 		case "Bearer invalidfox":
-			throw new HTTPError({ body: "{\"errcode\": \"M_UNKNOWN_TOKEN\"}"} as any, null as any);
+			const error = new HTTPError({} as any);
+			Object.defineProperty(error, "response", {
+				enumerable: false,
+				value: { body: "{\"errcode\": \"M_UNKNOWN_TOKEN\"}"},
+			});
+			throw error;
 		default:
 			throw new Error("bad login");
 	}

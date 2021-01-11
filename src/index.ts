@@ -17,12 +17,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import * as express from "express";
 import * as expressRateLimit from "express-rate-limit";
-import got, { HTTPError } from "got";
+import origGot, { HTTPError, Got } from "got";
 
 const STATUS_BAD_REQUEST = 400;
 const STATUS_UNAUTHORIZED = 401;
 const STATUS_FORBIDDEN = 403;
 const STATUS_INTERNAL_SERVER_ERROR = 500;
+
+let got = origGot;
+
+export function setGotFn(g: Got) {
+	got = g;
+}
 
 export function parseAccessToken(): express.RequestHandler {
 	return (req: express.Request, res: express.Response, next: express.NextFunction) => {
